@@ -77,10 +77,24 @@ def auth_check() -> None:
               help="Cap every stage's concurrency to this (cost containment).")
 @click.option("--max-recon-tasks", default=None, type=int,
               help="Cap the number of initial Hunt tasks Recon may emit.")
+@click.option("--target-url", default=None,
+              help="Optional: URL of a live deployment the agents can hit "
+                   "to confirm findings (e.g. http://server.local:8888).")
+@click.option("--target-creds", "target_creds", multiple=True,
+              metavar="KEY=VALUE",
+              help="Credentials for the live target. Repeat the flag for "
+                   "each KEY=VALUE pair (e.g. --target-creds email=admin@x "
+                   "--target-creds password=...).")
+@click.option("--scope-notes", "scope_notes_path", default=None,
+              type=click.Path(exists=True, dir_okay=False),
+              help="Optional: path to a text file with target-specific scope "
+                   "rules / exclusions; passed verbatim to every stage.")
 @click.option("--config", "config_path", default=None, type=click.Path(),
               help="Override config/stages.yaml.")
 def run(repo: str, run_id: str | None, resume: bool, max_cost_usd: float | None,
         max_concurrency: int | None, max_recon_tasks: int | None,
+        target_url: str | None, target_creds: tuple[str, ...],
+        scope_notes_path: str | None,
         config_path: str | None) -> None:
     """Run the full 8-stage pipeline against a target repo."""
     try:
@@ -93,6 +107,28 @@ def run(repo: str, run_id: str | None, resume: bool, max_cost_usd: float | None,
     if max_concurrency is not None:
         config.cap_concurrency(max_concurrency)
         console.print(f"[cyan]capped concurrency to {max_concurrency} across all stages[/cyan]")
+
+    # Live-target plumbing — agents will receive {"url": ..., "credentials": {...}}
+    # in their user_input when set.
+    live_target: dict | None = None
+    if target_url:
+        creds: dict[str, str] = {}
+        for kv in target_creds:
+            if "=" not in kv:
+                console.print(f"[red]invalid --target-creds {kv!r} — expected KEY=VALUE[/red]")
+                sys.exit(2)
+            k, _, v = kv.partition("=")
+            creds[k.strip()] = v.strip()
+        live_target = {"url": target_url, "credentials": creds}
+        console.print(f"[cyan]live target:[/cyan] {target_url} (creds: {sorted(creds)})")
+    elif target_creds:
+        console.print("[yellow]--target-creds without --target-url is ignored[/yellow]")
+
+    scope_notes: str | None = None
+    if scope_notes_path:
+        scope_notes = Path(scope_notes_path).read_text()
+        console.print(f"[cyan]scope notes loaded:[/cyan] {scope_notes_path} ({len(scope_notes)} chars)")
+
     run_id = run_id or f"run_{uuid.uuid4().hex[:8]}"
     repo_path = Path(repo).resolve()
 
@@ -106,6 +142,8 @@ def run(repo: str, run_id: str | None, resume: bool, max_cost_usd: float | None,
             max_cost_usd=max_cost_usd,
             resume=resume,
             max_recon_tasks=max_recon_tasks,
+            live_target=live_target,
+            scope_notes=scope_notes,
         ))
         console.print(f"[green]done[/green] run_id={run_id} report={report}")
     except CostExceeded as e:

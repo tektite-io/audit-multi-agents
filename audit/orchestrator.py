@@ -29,8 +29,16 @@ async def run_pipeline(
     max_cost_usd: float | None = None,
     resume: bool = False,
     max_recon_tasks: int | None = None,
+    live_target: dict | None = None,
+    scope_notes: str | None = None,
 ) -> Path:
-    ctx = StageContext(run_id=run_id, repo_path=repo_path.resolve(), config=config)
+    ctx = StageContext(
+        run_id=run_id,
+        repo_path=repo_path.resolve(),
+        config=config,
+        live_target=live_target,
+        scope_notes=scope_notes,
+    )
 
     if db.get_run(run_id) is None:
         db.create_run(str(repo_path.resolve()), run_id)

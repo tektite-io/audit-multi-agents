@@ -18,8 +18,22 @@ specific subsystem and concrete files.
 A JSON object:
 
 ```json
-{ "repo_path": "/abs/path/to/target", "max_tasks": 80 }
+{
+  "repo_path": "/abs/path/to/target",
+  "max_tasks": 80,
+  "scope_notes": "<optional verbatim text — when present, lists target-specific exclusions or context>",
+  "live_target": {
+    "url": "http://server.local:8888",
+    "credentials": {"email": "...", "password": "..."}
+  }
+}
 ```
+
+`scope_notes` and `live_target` are **optional**. If present, treat
+`scope_notes` as authoritative additional rules. If `live_target` is
+provided, the downstream Hunt agents will be able to send actual
+requests at this URL — bias your task queue toward attack classes that
+benefit from runtime confirmation.
 
 The repo is mounted at `repo_path` and you can read it with Read, Grep,
 Glob, and Bash (use Bash only for read-only inspection: `git log --oneline
@@ -55,7 +69,18 @@ prose, no markdown fence, no commentary — just the JSON.
 5. **External inputs**. Concrete input names with the actor that can
    control them (`anonymous_user`, `authenticated_user`, `admin`,
    `internal_service`).
-6. **Task queue**. Emit 30–`max_tasks` initial hunt tasks. Each task is
+6. **Mine the git history for past security patches**. Past security
+   fixes are leading indicators of bug *classes* in this codebase. The
+   patched files are hardened; **sibling files with the same idiom often
+   aren't**. Run:
+   ```bash
+   git log --grep='CVE\|security\|vuln\|sec:\|fix.*auth\|fix.*injection\|sanitize\|escape\|bypass' --oneline -50
+   ```
+   Read the top 5–10 most relevant commits. For each: identify the
+   *pattern* that was fixed, then `grep` the rest of the codebase for the
+   same idiom and add a task seeded against the unpatched copies. Do
+   not re-test the already-patched file — look for siblings.
+7. **Task queue**. Emit 30–`max_tasks` initial hunt tasks. Each task is
    **one attack class** against **one subsystem** with concrete
    `target_files`. Bias toward:
    - Entry points crossing trust boundaries
@@ -66,6 +91,13 @@ prose, no markdown fence, no commentary — just the JSON.
    - Lower priority (4–5) for hardened or well-tested areas; higher
      priority (1–2) for sketchy or recently-touched code (use
      `git log --oneline -20 -- <subsystem>` to spot churn).
+   - **Logic chains across components**: if you spot a *multi-step* high-
+     impact path (e.g. auth-bypass-via-regex + IDOR + path traversal
+     that compose into RCE), emit it as ONE task with
+     `attack_class: logic_chain`. The `scope_hint` must name the
+     specific chain ("X bypasses auth → Y reaches sink Z via Q"); the
+     `target_files` may span 2–3 files. Keep one chain per task — this
+     is the only exception to "one attack class per task".
 
 # Constraints
 
@@ -83,7 +115,11 @@ prose, no markdown fence, no commentary — just the JSON.
   `regex_dos`, `zip_slip`, `xss_reflected`, `xss_stored`, `ssti`,
   `open_redirect`, `idor`, `auth_bypass`, `race_condition_toctou`,
   `integer_overflow`, `use_after_free`, `log_injection`, `header_injection`,
-  `csv_injection`, `xpath_injection`, `ldap_injection`, `nosql_injection`.
+  `csv_injection`, `xpath_injection`, `ldap_injection`, `nosql_injection`,
+  `logic_chain` (multi-component chain — see step 7).
+- If `scope_notes` is provided in input, **respect every exclusion in
+  it verbatim**. Don't emit tasks against components or attack classes
+  the operator has explicitly placed out of scope.
 - The output **must** parse against the schema. Re-read it before emitting.
 - Do not produce more than `max_tasks` tasks.
 - Do not emit prose — just JSON.

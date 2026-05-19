@@ -24,7 +24,8 @@ async def run_recon(ctx: StageContext, db: StateDB, max_tasks: int = DEFAULT_MAX
     result = await run_agent(
         stage="recon",
         prompt_file=ctx.prompt("01-recon"),
-        user_input={"repo_path": str(ctx.repo_path), "max_tasks": max_tasks},
+        user_input={"repo_path": str(ctx.repo_path), "max_tasks": max_tasks,
+                    **ctx.extras()},
         schema_file=ctx.schema("recon_output"),
         allowed_tools=sc.tools,
         model=sc.model,

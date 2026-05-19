@@ -37,6 +37,7 @@ async def run_trace(ctx: StageContext, db: StateDB) -> int:
                 "finding": f.raw_json,
                 "recon_summary": truncated_recon_summary(recon_summary),
                 "repo_path": str(ctx.repo_path),
+                **ctx.extras(),
             }
             try:
                 result = await run_agent(

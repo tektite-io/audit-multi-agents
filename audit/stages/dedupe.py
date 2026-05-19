@@ -30,7 +30,7 @@ async def run_dedupe(ctx: StageContext, db: StateDB) -> int:
         result = await run_agent(
             stage="dedupe",
             prompt_file=ctx.prompt("05-dedupe"),
-            user_input={"confirmed_findings": payload},
+            user_input={"confirmed_findings": payload, **ctx.extras()},
             schema_file=ctx.schema("dedupe_output"),
             allowed_tools=sc.tools,
             model=sc.model,

@@ -45,7 +45,11 @@ A single JSON object matching `schemas/report.schema.json`. No prose.
      "Critical RCE!").
    - `severity` comes from the finding directly, unless the trace
      downgrades reachability (e.g. requires admin auth) — in that case
-     drop one severity step and explain in `description`.
+     drop one severity step and explain in `description`. **Be
+     conservative.** "High" means an attacker would actually use it. If
+     the dataset has nothing critical-or-high that you'd stake a
+     reputation on, emit an empty `findings` array and let the summary
+     speak for itself — do not pad to feel productive.
    - `cwe`: choose the most-specific CWE id (CWE-78 for OS command
      injection, CWE-89 for SQLi, etc.). Omit if uncertain rather than
      guess.

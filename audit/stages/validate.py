@@ -43,6 +43,7 @@ async def run_validate(ctx: StageContext, db: StateDB) -> int:
                 "finding": f.raw_json,
                 "task_context": ctx_block,
                 "repo_path": str(ctx.repo_path),
+                **ctx.extras(),
             }
             try:
                 result = await run_agent(

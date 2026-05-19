@@ -27,7 +27,8 @@ async def run_report(ctx: StageContext, db: StateDB) -> Path:
 
     sc = ctx.stage("report")
     target = {"repo_path": str(ctx.repo_path)}
-    user_input = {"run_id": ctx.run_id, "target": target, "ready_findings": ready}
+    user_input = {"run_id": ctx.run_id, "target": target, "ready_findings": ready,
+                  **ctx.extras()}
 
     out_path = ctx.results_dir("report") / "report.json"
 

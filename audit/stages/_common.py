@@ -20,9 +20,21 @@ class StageContext:
     run_id: str
     repo_path: Path
     config: HarnessConfig
+    # Optional operator context — when set, downstream prompts use them.
+    live_target: dict | None = None    # {"url": "...", "credentials": {...}}
+    scope_notes: str | None = None     # verbatim text appended to user_input
 
     def stage(self, name: str) -> StageConfig:
         return self.config.get(name)
+
+    def extras(self) -> dict:
+        """Optional fields merged into every agent's user_input."""
+        out: dict = {}
+        if self.live_target:
+            out["live_target"] = self.live_target
+        if self.scope_notes:
+            out["scope_notes"] = self.scope_notes
+        return out
 
     def prompt(self, name: str) -> Path:
         path = PROMPTS / f"{name}.md"

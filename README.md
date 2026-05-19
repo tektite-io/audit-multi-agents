@@ -92,6 +92,66 @@ audit run --repo /path/to/target \
 The budget guard fires between *and* within stages — a per-task check in
 Hunt cooperatively aborts rather than running 30 more tasks past the cap.
 
+## Live-target reproduction (optional)
+
+If the target has a running deployment, point the agents at it. Hunt now
+**reproduces** each finding against the live service instead of compiling
+a local PoC, Validate **rejects** findings that don't reproduce, and Trace
+**confirms** reachability with real HTTP round-trips. The static path
+remains available — these flags are opt-in.
+
+```bash
+audit run --repo /path/to/target --run-id live \
+  --max-concurrency 1 --max-cost-usd 30 \
+  --target-url http://server.local:8888 \
+  --target-creds email=admin@system.com \
+  --target-creds password=changechangeme
+```
+
+Rules the agents follow when `--target-url` is set:
+- Network egress is restricted to that host + `127.0.0.1`. No other external
+  hosts.
+- A finding that doesn't reproduce against the live target is dropped or
+  rejected (depending on stage) — "no fabrication".
+- Credentials flow into every relevant stage's user_input as a dict.
+
+## Scope notes (optional)
+
+Targets often have intentionally-loose-by-design surfaces that aren't bugs
+(e.g. plaintext API keys when that's a feature, test-only Mailpit endpoints,
+anonymous-analytics ingest). Drop them in a text file and pass it in — the
+notes are appended verbatim to every stage's user_input, and Recon / Hunt /
+Validate honor exclusions you list.
+
+```bash
+audit run --repo /path/to/target --scope-notes target_scope.md
+```
+
+Example `target_scope.md`:
+
+```markdown
+- Mailpit (port 1025) is test-only; ignore.
+- Plaintext API keys in the database are a required feature.
+- Don't flag rate-limit absence on anonymous /ping endpoints.
+- Only consider critical/high severity.
+```
+
+## Recon mines git history
+
+Recon greps the git history for past security patches
+(`CVE`, `sec:`, `fix.*auth`, `sanitize`, …) — patched files are hardened,
+but **sibling files with the same idiom often aren't**. Findings get seeded
+against the unpatched copies. Adds zero cost on repos without that pattern;
+catches real cross-component bugs on repos that have it.
+
+## Logic chains
+
+The pipeline's default is one-attack-class-per-task (the Cloudflare paper's
+narrow-scope rule). Recon can also emit `logic_chain` tasks for high-impact
+multi-component paths (auth-bypass + IDOR + path-traversal that compose into
+RCE, etc.) — one chain per task, with the `scope_hint` naming the specific
+chain. This is the one allowed exception to single-attack-class scoping.
+
 ## Layout
 
 ```

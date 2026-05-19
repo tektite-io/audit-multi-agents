@@ -63,6 +63,7 @@ async def run_hunt(
                 "repo_path": str(ctx.repo_path),
                 "scratch_dir": str(scratch),
                 "recon_summary": truncated_recon_summary(recon_summary, subsystem_hint),
+                **ctx.extras(),
             }
             try:
                 result = await run_agent(

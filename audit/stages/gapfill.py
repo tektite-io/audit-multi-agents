@@ -52,6 +52,7 @@ async def run_gapfill(ctx: StageContext, db: StateDB,
         "recon_summary": truncated_recon_summary(recon_summary),
         "completed_tasks": completed_payload,
         "max_new_tasks": max_new_tasks,
+        **ctx.extras(),
     }
     try:
         result = await run_agent(

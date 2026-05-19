@@ -60,3 +60,6 @@ users.db
 notes.db
 *.sqlite
 *.sqlite3
+
+/REPORT-*.md
+/REPORT.md
